@@ -15,6 +15,7 @@ import {
   type Ga4ReportResult,
 } from "@/server/features/ga4/services/Ga4ReportingService";
 import { Ga4ReportError } from "@/server/lib/ga4Errors";
+import { OnyxmetricReportError } from "@/server/lib/onyxmetricErrors";
 import { SearchOpportunityService } from "@/server/features/ga4/services/SearchOpportunityService";
 import { buildProjectMeta } from "@/server/mcp/context";
 import { mcpResponse } from "@/server/mcp/formatters";
@@ -24,7 +25,7 @@ import { projectIdSchema } from "@/server/mcp/schemas";
 import { formatMcpTable, type McpTableColumn } from "@/server/mcp/table";
 import { buildDashboardUrl } from "@/server/mcp/urls";
 
-const dateSchema = z
+export const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .describe("Inclusive YYYY-MM-DD date. Provide both startDate and endDate.");
@@ -50,7 +51,7 @@ const errorDetailSchema = z
 // discriminated union normalizes to undefined, which drops the schema from
 // tools/list and crashes output validation. So the ok/error branches share
 // one object, with the per-status required fields enforced by a refinement.
-function analyticsEnvelopeSchema(okShape: Record<string, z.ZodType>) {
+export function analyticsEnvelopeSchema(okShape: Record<string, z.ZodType>) {
   const requiredOkFields = Object.entries(okShape)
     .filter(([, field]) => !field.safeParse(undefined).success)
     .map(([key]) => key);
@@ -147,7 +148,7 @@ type ProjectContext = {
   project: unknown;
 };
 
-type ProjectArgs = { projectId: string };
+export type ProjectArgs = { projectId: string };
 
 function actionUrl(
   baseUrl: string,
@@ -172,10 +173,20 @@ function actionUrl(
   if (code.startsWith("gsc_")) {
     return buildDashboardUrl(baseUrl, `/p/${projectId}/search-performance`);
   }
+  if (
+    [
+      "onyxmetric_not_connected",
+      "onyxmetric_not_configured",
+      "onyxmetric_auth_failed",
+      "onyxmetric_site_inaccessible",
+    ].includes(code)
+  ) {
+    return buildDashboardUrl(baseUrl, `/p/${projectId}/settings/integrations`);
+  }
   return undefined;
 }
 
-function errorResponse(
+export function errorResponse(
   args: ProjectArgs,
   context: ProjectContext,
   error: unknown,
@@ -183,7 +194,10 @@ function errorResponse(
   let code: string;
   let message: string;
   let retryAfterSeconds: number | null | undefined;
-  if (error instanceof Ga4ReportError) {
+  if (
+    error instanceof Ga4ReportError ||
+    error instanceof OnyxmetricReportError
+  ) {
     code = error.code;
     message = error.message;
     retryAfterSeconds = error.retryAfterSeconds;
@@ -436,7 +450,7 @@ export const getSearchOpportunitiesTool = {
   config: {
     title: "Get search opportunities",
     description:
-      "Join Search Console pages ranking in positions 4–20 with GA4 organic landing-page outcomes, then score matched opportunities by demand, business value, and reachability. Unmatched pages remain visible and unscored. Reads only the Search Console and GA4 properties already connected to an OpenSEO project the caller is authorized to access. The server selects the Google accounts and properties from that project's saved connections. Read-only and uses no OpenSEO credits.",
+      "Join Search Console pages ranking in positions 4–20 with GA4 organic landing-page outcomes (or OnyxMetric organic landing pages when the project uses OnyxMetric instead of GA4), then score matched opportunities by demand, business value, and reachability. Unmatched pages remain visible and unscored. Reads only the Search Console and GA4 or OnyxMetric properties already connected to an OpenSEO project the caller is authorized to access. The server selects the Google accounts and properties from that project's saved connections. Read-only and uses no OpenSEO credits.",
     inputSchema: opportunityInputSchema,
     outputSchema: opportunityOutputSchema,
     annotations: {
@@ -449,7 +463,7 @@ export const getSearchOpportunitiesTool = {
     try {
       const result = await SearchOpportunityService.getOpportunities(args);
       return mcpResponse({
-        text: `Search opportunities: ${result.rowCount} returned from ${result.totalCandidateRows} candidates. ${result.coverage.matchedRows} candidates matched GA4 landing pages.`,
+        text: `Search opportunities: ${result.rowCount} returned from ${result.totalCandidateRows} candidates. ${result.coverage.matchedRows} candidates matched analytics landing pages.`,
         meta: buildProjectMeta(context, args.projectId),
         structuredContent: result,
       });

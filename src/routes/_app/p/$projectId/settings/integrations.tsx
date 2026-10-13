@@ -2,6 +2,10 @@ import { queryClient } from "@/client/tanstack-db/queryClient";
 import { googleConnectionOptions } from "@/client/features/integrations/googleProviders";
 import { createFileRoute } from "@tanstack/react-router";
 import { GoogleConnectionCard } from "@/client/features/integrations/GoogleConnectionCard";
+import {
+  OnyxmetricConnectionCard,
+  onyxmetricConnectionOptions,
+} from "@/client/features/integrations/OnyxmetricConnectionCard";
 import { CrawlerAccessSettings } from "@/client/features/settings/CrawlerAccessSettings";
 
 export const Route = createFileRoute(
@@ -14,6 +18,9 @@ export const Route = createFileRoute(
     );
     void queryClient.prefetchQuery(
       googleConnectionOptions("ga4", params.projectId),
+    );
+    void queryClient.prefetchQuery(
+      onyxmetricConnectionOptions(params.projectId),
     );
   },
   component: ProjectIntegrationsRoute,
@@ -33,6 +40,10 @@ function ProjectIntegrationsRoute() {
 
       <section id="google-analytics" className="scroll-mt-6">
         <GoogleConnectionCard provider="ga4" projectId={projectId} />
+      </section>
+
+      <section id="onyxmetric" className="scroll-mt-6">
+        <OnyxmetricConnectionCard projectId={projectId} />
       </section>
 
       <CrawlerAccessSettings projectId={projectId} />

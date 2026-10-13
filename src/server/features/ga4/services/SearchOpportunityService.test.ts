@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeGa4ReportResult } from "./ga4-test-fixtures";
+import type * as OnyxmetricReportModule from "@/server/features/onyxmetric/services/OnyxmetricReportService";
 import { SearchOpportunityService } from "./SearchOpportunityService";
 
 const mocks = vi.hoisted(() => ({
@@ -7,7 +8,25 @@ const mocks = vi.hoisted(() => ({
   getGscConnection: vi.fn(),
   getPerformance: vi.fn(),
   runGa4Report: vi.fn(),
+  getOnyxmetricConnection: vi.fn(),
+  runOnyxmetricReport: vi.fn(),
 }));
+
+vi.mock(
+  "@/server/features/onyxmetric/repositories/OnyxmetricConnectionRepository",
+  () => ({
+    OnyxmetricConnectionRepository: {
+      getByProjectId: mocks.getOnyxmetricConnection,
+    },
+  }),
+);
+vi.mock(
+  "@/server/features/onyxmetric/services/OnyxmetricReportService",
+  async (importOriginal) => ({
+    ...(await importOriginal<typeof OnyxmetricReportModule>()),
+    OnyxmetricReportService: { runReport: mocks.runOnyxmetricReport },
+  }),
+);
 
 vi.mock("@/server/features/ga4/repositories/Ga4ConnectionRepository", () => ({
   Ga4ConnectionRepository: { getByProjectId: mocks.getGa4Connection },
@@ -63,6 +82,7 @@ describe("SearchOpportunityService", () => {
       siteUrl: "https://example.com/",
     });
     mocks.runGa4Report.mockResolvedValue(ga4Result);
+    mocks.getOnyxmetricConnection.mockResolvedValue(null);
   });
 
   it("normalizes URLs, scores joined candidates, and leaves unmatched pages unscored", async () => {
@@ -198,5 +218,63 @@ describe("SearchOpportunityService", () => {
         endDate: "2026-08-02",
       }),
     );
+  });
+
+  it("joins Search Console pages to OnyxMetric landing pages by path when GA4 is not connected", async () => {
+    mocks.getGa4Connection.mockResolvedValue(null);
+    mocks.getOnyxmetricConnection.mockResolvedValue({ siteId: "7" });
+    mocks.runOnyxmetricReport.mockResolvedValue({
+      source: { siteId: "7", siteName: "Acme" },
+      reportMetadata: { hasLimitedData: false },
+      warnings: [],
+      pageInfo: { hasMore: false },
+      rows: [
+        { landingPage: "/guide", sessions: 3, bounceRate: 80 },
+        { landingPage: "/guide?utm=x", sessions: 40, bounceRate: 20 },
+      ],
+    });
+    mocks.getPerformance.mockResolvedValue({
+      siteUrl: "https://example.com/",
+      request: {},
+      rows: [
+        {
+          keys: ["https://example.com/guide/"],
+          clicks: 10,
+          impressions: 1_000,
+          ctr: 0.01,
+          position: 6,
+        },
+        {
+          keys: ["https://example.com/missing"],
+          clicks: 1,
+          impressions: 900,
+          ctr: 0.001,
+          position: 9,
+        },
+      ],
+    });
+
+    const result = await SearchOpportunityService.getOpportunities(
+      { projectId: "project_1" },
+      { now: new Date("2026-08-06T12:00:00Z") },
+    );
+
+    expect(result.source).toMatchObject({ analyticsProvider: "onyxmetric" });
+    expect(result.rows[0]).toMatchObject({
+      joinStatus: "joined",
+      onyxmetric: { sessions: 40, engagementRate: 0.8 },
+    });
+    expect(result.rows[1]).toMatchObject({
+      joinStatus: "gsc_only",
+      score: null,
+    });
+  });
+
+  it("still reports GA4 as not connected when OnyxMetric is not connected either", async () => {
+    mocks.getGa4Connection.mockResolvedValue(null);
+
+    await expect(
+      SearchOpportunityService.getOpportunities({ projectId: "project_1" }),
+    ).rejects.toMatchObject({ code: "ga4_not_connected" });
   });
 });

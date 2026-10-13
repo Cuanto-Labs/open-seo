@@ -6,7 +6,14 @@ import {
 } from "@/server/features/ga4/services/Ga4ReportingService";
 import { Ga4ReportError } from "@/server/lib/ga4Errors";
 import { Ga4ConnectionRepository } from "@/server/features/ga4/repositories/Ga4ConnectionRepository";
+import { OnyxmetricConnectionRepository } from "@/server/features/onyxmetric/repositories/OnyxmetricConnectionRepository";
+import { OnyxmetricSearchOpportunityService } from "@/server/features/onyxmetric/services/OnyxmetricSearchOpportunityService";
 import { ga4DateInTimeZone, shiftGa4Date } from "./Ga4Dates";
+import {
+  normalizePageKey,
+  scoreOpportunities,
+  SEARCH_OPPORTUNITY_SCORE_FORMULA,
+} from "./SearchOpportunityScoring";
 
 type SearchOpportunityInput = {
   projectId: string;
@@ -56,45 +63,12 @@ function resolveCombinedDates(
   return resolveGa4DateRange(input, propertyTimeZone, now).resolvedDateRange;
 }
 
-function normalizePageKey(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === "(not set)") return null;
-  try {
-    const url = new URL(
-      trimmed.includes("://") ? trimmed : `https://${trimmed}`,
-    );
-    let host = url.hostname.toLowerCase();
-    const defaultPort =
-      (url.protocol === "http:" && url.port === "80") ||
-      (url.protocol === "https:" && url.port === "443");
-    if (url.port && !defaultPort) host += `:${url.port}`;
-    let path = url.pathname || "/";
-    if (path.length > 1) path = path.replace(/\/+$/, "");
-    return `${host}${path}`;
-  } catch {
-    return null;
-  }
-}
-
 function numberField(
   row: Record<string, string | number | null>,
   name: string,
 ): number {
   const value = row[name];
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function percentileRanks(values: number[]): number[] {
-  if (values.length === 0) return [];
-  if (values.length === 1) return [1];
-  return values.map((value) => {
-    const lower = values.filter((candidate) => candidate < value).length;
-    return lower / (values.length - 1);
-  });
-}
-
-function roundComponent(value: number): number {
-  return Math.round(value * 10_000) / 10_000;
 }
 
 async function getOpportunities(
@@ -113,6 +87,10 @@ async function getOpportunities(
     GscService.getConnection(input.projectId),
   ]);
   if (!ga4Connection) {
+    // OnyxMetric stands in for GA4 when it is the project's analytics source.
+    if (await OnyxmetricConnectionRepository.getByProjectId(input.projectId)) {
+      return OnyxmetricSearchOpportunityService.getOpportunities(input, opts);
+    }
     throw new Ga4ReportError(
       "ga4_not_connected",
       "Google Analytics is not connected for this project.",
@@ -207,32 +185,20 @@ async function getOpportunities(
   const engagementFallback =
     joined.length > 0 &&
     joined.every((candidate) => candidate.ga4.keyEvents === 0);
-  const demand = percentileRanks(
-    joined.map((candidate) => Math.log1p(candidate.impressions)),
-  );
-  const businessValue = percentileRanks(
-    joined.map((candidate) =>
-      engagementFallback
+  const scores = scoreOpportunities(
+    joined.map((candidate) => ({
+      impressions: candidate.impressions,
+      position: candidate.position,
+      businessValue: engagementFallback
         ? candidate.ga4.engagementRate
         : candidate.ga4.sessionKeyEventRate,
-    ),
-  );
-  const reachability = percentileRanks(
-    joined.map((candidate) => 20 - candidate.position),
+    })),
   );
   joined.forEach((candidate, index) => {
-    const components = {
-      demand: roundComponent(demand[index] ?? 0),
-      businessValue: roundComponent(businessValue[index] ?? 0),
-      reachability: roundComponent(reachability[index] ?? 0),
-    };
-    candidate.scoreComponents = components;
-    candidate.score = Math.round(
-      100 *
-        (0.5 * components.demand +
-          0.3 * components.businessValue +
-          0.2 * components.reachability),
-    );
+    const scored = scores[index];
+    if (!scored) return;
+    candidate.scoreComponents = scored.components;
+    candidate.score = scored.score;
   });
   candidates.sort((a, b) => {
     if (a.score == null && b.score != null) return 1;
@@ -260,8 +226,7 @@ async function getOpportunities(
     totalCandidateRows: candidates.length,
     rows: returned,
     scoring: {
-      formula:
-        "round(100 * (0.5 * demand + 0.3 * businessValue + 0.2 * reachability))",
+      formula: SEARCH_OPPORTUNITY_SCORE_FORMULA,
       businessValueMetric: engagementFallback
         ? "engagementRate"
         : "sessionKeyEventRate",

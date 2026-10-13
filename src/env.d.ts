@@ -79,6 +79,9 @@ declare namespace Cloudflare {
     OPENROUTER_API_KEY?: string;
     // Optional OpenRouter model slug override (defaults in openrouter.ts).
     OPENROUTER_MODEL?: string;
+    // OnyxMetric analytics key (server-side only) and optional base URL.
+    ONYXMETRIC_API_KEY?: string;
+    ONYXMETRIC_BASE_URL?: string;
   }
 }
 

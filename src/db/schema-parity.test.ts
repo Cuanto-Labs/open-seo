@@ -15,6 +15,7 @@ import * as sqliteAuth from "./better-auth-schema";
 import * as sqliteBilling from "./billing.schema";
 import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
+import * as sqliteOnyxmetric from "./onyxmetric.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as sqliteAiVisibility from "./ai-visibility.schema";
 import * as pgApp from "./pg/app.schema";
@@ -27,6 +28,7 @@ import * as pgAuth from "./pg/better-auth-schema";
 import * as pgBilling from "./pg/billing.schema";
 import * as pgGa4 from "./pg/ga4.schema";
 import * as pgGsc from "./pg/gsc.schema";
+import * as pgOnyxmetric from "./pg/onyxmetric.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 import * as pgAiVisibility from "./pg/ai-visibility.schema";
 
@@ -160,6 +162,7 @@ const sqliteAppTables = tablesFrom(
   sqliteBilling,
   sqliteGa4,
   sqliteGsc,
+  sqliteOnyxmetric,
   sqliteTelemetry,
   sqliteAiVisibility,
 );
@@ -173,6 +176,7 @@ const pgAppTables = tablesFrom(
   pgBilling,
   pgGa4,
   pgGsc,
+  pgOnyxmetric,
   pgTelemetry,
   pgAiVisibility,
 );
