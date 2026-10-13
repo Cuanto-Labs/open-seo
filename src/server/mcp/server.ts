@@ -52,6 +52,13 @@ import {
   getGoogleAnalyticsTrafficAcquisitionTool,
   getSearchOpportunitiesTool,
 } from "@/server/mcp/tools/google-analytics-tools";
+import {
+  getOnyxmetricBreakdownTool,
+  getOnyxmetricChannelsTool,
+  getOnyxmetricLandingPagesTool,
+  getOnyxmetricOverviewTool,
+  getOnyxmetricReferrersTool,
+} from "@/server/mcp/tools/onyxmetric-tools";
 import { createProjectTool } from "@/server/mcp/tools/create-project";
 import { listProjectsTool } from "@/server/mcp/tools/list-projects";
 import {
@@ -262,6 +269,11 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getGoogleAnalyticsEcommercePerformanceTool);
   register(getGoogleAnalyticsSiteSearchTool);
   register(getGoogleAnalyticsAudienceBreakdownTool);
+  register(getOnyxmetricOverviewTool);
+  register(getOnyxmetricLandingPagesTool);
+  register(getOnyxmetricChannelsTool);
+  register(getOnyxmetricReferrersTool);
+  register(getOnyxmetricBreakdownTool);
   register(runSiteAuditTool);
   register(listSiteAuditsTool);
   register(deleteSiteAuditTool);

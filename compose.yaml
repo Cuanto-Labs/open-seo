@@ -26,6 +26,10 @@ services:
       # docs/SELF_HOSTING_GOOGLE_SEARCH_CONSOLE.md
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      # Optional: OnyxMetric analytics (replaces GA4 on the dashboard and
+      # in the MCP tools). The key stays server-side.
+      - ONYXMETRIC_API_KEY=${ONYXMETRIC_API_KEY:-}
+      - ONYXMETRIC_BASE_URL=${ONYXMETRIC_BASE_URL:-}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       # Optional: AI features (SAM, the in-app SEO agent)
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}

@@ -22,6 +22,7 @@ import {
   AuditHealthCard,
   GscCard,
 } from "@/client/features/dashboard/DashboardCards";
+import { OnyxmetricCard } from "@/client/features/dashboard/OnyxmetricCard";
 import { Ga4Card } from "@/client/features/dashboard/Ga4Card";
 import { WorkspaceMergeBanner } from "@/client/features/dashboard/WorkspaceMergeBanner";
 import { QueryError } from "@/client/components/QueryState";
@@ -89,6 +90,11 @@ export function DashboardPage({
   const showBacklinks = activation.domain !== null;
   const gscConnected = activation.gsc.connected;
   const ga4Connected = activation.ga4.connected;
+  const onyxmetricConnected = activation.onyxmetric.connected;
+  // OnyxMetric fills the role GA4 plays: once a site is connected it replaces
+  // the GA4 card, and the connect pitch only shows when the server has a key.
+  const showOnyxmetric =
+    onyxmetricConnected || (activation.onyxmetric.configured && !ga4Connected);
 
   // Search Console always renders: connected shows the report, otherwise the
   // connect pitch. It sits ahead of the optional GA4 pitch.
@@ -116,7 +122,22 @@ export function DashboardPage({
         />
       ),
     },
-    ...(ga4Connected || !activation.ga4.cardDismissedAt
+    ...(showOnyxmetric
+      ? [
+          {
+            key: "onyxmetric",
+            hasData: onyxmetricConnected,
+            node: (
+              <OnyxmetricCard
+                projectId={projectId}
+                connected={onyxmetricConnected}
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(!onyxmetricConnected &&
+    (ga4Connected || !activation.ga4.cardDismissedAt)
       ? [
           {
             key: "ga4",

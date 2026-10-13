@@ -55,6 +55,13 @@ import {
   getSearchOpportunitiesTool,
 } from "@/server/mcp/tools/google-analytics-tools";
 import {
+  getOnyxmetricBreakdownTool,
+  getOnyxmetricChannelsTool,
+  getOnyxmetricLandingPagesTool,
+  getOnyxmetricOverviewTool,
+  getOnyxmetricReferrersTool,
+} from "@/server/mcp/tools/onyxmetric-tools";
+import {
   findSerpCompetitorsTool,
   getGoogleBusinessQuestionsTool,
   getKeywordMetricsTool,
@@ -456,6 +463,13 @@ export function buildSamMcpTools(
     get_google_analytics_audience_breakdown: adaptObjectTool(
       getGoogleAnalyticsAudienceBreakdownTool,
     ),
+    get_onyxmetric_overview: adaptObjectTool(getOnyxmetricOverviewTool),
+    get_onyxmetric_landing_pages: adaptObjectTool(
+      getOnyxmetricLandingPagesTool,
+    ),
+    get_onyxmetric_channels: adaptObjectTool(getOnyxmetricChannelsTool),
+    get_onyxmetric_referrers: adaptObjectTool(getOnyxmetricReferrersTool),
+    get_onyxmetric_breakdown: adaptObjectTool(getOnyxmetricBreakdownTool),
     run_site_audit: adaptTool(runSiteAuditTool),
     get_audit_status: waitingAuditStatusTool(adaptTool),
     get_audit_issues: adaptTool(getAuditIssuesTool),

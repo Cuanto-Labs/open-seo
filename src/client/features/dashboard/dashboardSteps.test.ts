@@ -5,6 +5,7 @@ import { getStepStatus, setupSteps } from "./dashboardSteps";
 const fresh: DashboardActivation = {
   domain: null,
   ga4: { connected: false, propertyDisplayName: null, cardDismissedAt: null },
+  onyxmetric: { connected: false, configured: false, siteName: null },
   gsc: { connected: false, siteUrl: null },
   mcp: { authorizedAt: null, firstToolCallAt: null, cardDismissedAt: null },
   competitorClickedAt: null,

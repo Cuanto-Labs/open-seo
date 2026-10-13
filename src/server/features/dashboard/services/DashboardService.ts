@@ -5,6 +5,8 @@ import { ActivationRepository } from "@/server/features/activation/repositories/
 import { AuditRepository } from "@/server/features/audit/repositories/AuditRepository";
 import { getIssueTypePageCountsForAudit } from "@/server/features/audit/repositories/auditSummaryQueries";
 import { Ga4ConnectionRepository } from "@/server/features/ga4/repositories/Ga4ConnectionRepository";
+import { isOnyxmetricConfigured } from "@/server/lib/onyxmetricClient";
+import { OnyxmetricConnectionRepository } from "@/server/features/onyxmetric/repositories/OnyxmetricConnectionRepository";
 import { GscConnectionRepository } from "@/server/features/gsc/repositories/GscConnectionRepository";
 
 export type DashboardActivation = {
@@ -15,6 +17,11 @@ export type DashboardActivation = {
     cardDismissedAt: string | null;
   };
   gsc: { connected: boolean; siteUrl: string | null };
+  onyxmetric: {
+    connected: boolean;
+    configured: boolean;
+    siteName: string | null;
+  };
   mcp: {
     authorizedAt: string | null;
     firstToolCallAt: string | null;
@@ -54,6 +61,7 @@ async function getActivation(input: {
   const [
     ga4,
     gsc,
+    onyxmetric,
     orgActivation,
     projectActivation,
     projectCount,
@@ -63,6 +71,7 @@ async function getActivation(input: {
   ] = await Promise.all([
     Ga4ConnectionRepository.getByProjectId(input.projectId),
     GscConnectionRepository.getByProjectId(input.projectId),
+    OnyxmetricConnectionRepository.getByProjectId(input.projectId),
     ActivationRepository.getOrganizationActivation(input.organizationId),
     ActivationRepository.getProjectActivation(input.projectId),
     ProjectRepository.countProjects(input.organizationId),
@@ -82,6 +91,11 @@ async function getActivation(input: {
       cardDismissedAt: projectActivation?.ga4CardDismissedAt ?? null,
     },
     gsc: { connected: gsc !== null, siteUrl: gsc?.siteUrl ?? null },
+    onyxmetric: {
+      connected: onyxmetric !== null,
+      configured: await isOnyxmetricConfigured(),
+      siteName: onyxmetric?.siteName ?? null,
+    },
     mcp: {
       authorizedAt: orgActivation?.firstMcpAuthorizedAt ?? null,
       firstToolCallAt: orgActivation?.firstMcpToolCallAt ?? null,
