@@ -5,7 +5,7 @@ import {
 
 // OpenRouter model slug used for the SAM in-app chat agent. Override with
 // OPENROUTER_MODEL to swap models without a code change.
-const DEFAULT_CHAT_AGENT_MODEL = "openai/gpt-5.6-luna";
+const DEFAULT_CHAT_AGENT_MODEL = "openai/gpt-6-luna";
 
 // Previous default; kept reachable via OPENROUTER_MODEL for rollback. Its
 // routing needs the ZDR/provider tuning below.
@@ -17,8 +17,8 @@ const MINIMAX_M3 = "minimax/minimax-m3";
  * cost (providerMetadata.openrouter.usage.cost) — which we meter against the
  * shared usage-credit pool.
  *
- * Default model: GPT-5.6 Luna at `reasoning.effort: "max"` — "max" is valid at
- * the OpenRouter API for GPT-5.x but missing from the SDK's effort union, so
+ * Default model: GPT-6 Luna at `reasoning.effort: "max"` — "max" is valid at
+ * the OpenRouter API for GPT-5.x/6.x but missing from the SDK's effort union, so
  * the reasoning config rides in `extraBody`. Reasoning tokens stream on the
  * separate reasoning channel and are billed as output tokens, which the usage
  * accounting above captures.
